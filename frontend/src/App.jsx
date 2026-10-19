@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Activity, BarChart3, Database, FileUp, FlaskConical, LayoutDashboard, RefreshCw, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Line,
+  LineChart
+} from 'recharts'
 
 const API = 'http://127.0.0.1:5000'
 
@@ -12,12 +22,17 @@ export default function App() {
   const [connected, setConnected] = useState('not checked')
 
   const chartData = useMemo(() => {
-    if (!analysis?.numeric_summary) return []
-    return Object.entries(analysis.numeric_summary).slice(0, 6).map(([name, values]) => ({
-      name: name.length > 14 ? name.slice(0, 12) + '…' : name,
+  if (!analysis?.numeric_summary) return []
+
+  return Object.entries(analysis.numeric_summary)
+    .slice(0, 6)
+    .map(([name, values]) => ({
+      name: name.length > 14 ? name.slice(0, 12) + '...' : name,
       mean: Number(values.mean ?? 0)
     }))
-  }, [analysis])
+}, [analysis])
+
+const relationshipCharts = analysis?.relationship_charts ?? []
 
   async function checkBackend() {
     try {
@@ -91,6 +106,76 @@ export default function App() {
           </div>
         </section>
 
+<section className="panel schema-panel">
+  <div className="panel-heading">
+    <div>
+      <h3>Feature vs Sales Analysis</h3>
+      <p>Relationships calculated from your uploaded dataset</p>
+    </div>
+  </div>
+
+  {relationshipCharts.length > 0 ? (
+    <div className="relationship-grid">
+      {relationshipCharts.map((chart) => (
+        <div className="relationship-card" key={chart.x_column}>
+          <h4>
+            {chart.x_column} vs {chart.y_column}
+          </h4>
+
+          <div className="relationship-chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chart.data}
+                margin={{ top: 10, right: 20, left: 5, bottom: 20 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name={chart.x_column}
+                  label={{
+                    value: chart.x_column,
+                    position: "insideBottom",
+                    offset: -12
+                  }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  name={chart.y_column}
+                />
+                <Tooltip
+                  formatter={(value) => Number(value).toFixed(2)}
+                  labelFormatter={(value) =>
+                    `${chart.x_column}: ${value}`
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="y"
+                  name={chart.y_column}
+                  stroke="#28745a"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="schema-placeholder">
+      Upload a CSV containing numeric columns and a sales or revenue column
+      to view relationship charts.
+    </div>
+  )}
+</section>
+
         <section className="panel schema-panel"><div className="panel-heading"><div><h3>Dataset profile</h3><p>{analysis ? 'Detected column names and data types' : 'Column details will appear after upload'}</p></div></div>
           {analysis ? <div className="table-wrap"><table><thead><tr><th>Column</th><th>Data type</th><th>Missing values</th></tr></thead><tbody>{analysis.columns.map(c => <tr key={c.name}><td>{c.name}</td><td><span className="type-chip">{c.dtype}</span></td><td>{c.missing}</td></tr>)}</tbody></table></div> : <div className="schema-placeholder"><Database size={18}/> No dataset loaded yet</div>}
         </section>
@@ -100,6 +185,9 @@ export default function App() {
   )
 }
 
+function Metric({ icon, label, value, note }) {
+  return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
+}
 function Metric({ icon, label, value, note }) {
   return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
 }
