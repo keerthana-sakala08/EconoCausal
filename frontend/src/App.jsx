@@ -15,12 +15,31 @@ import {
 const API = 'http://127.0.0.1:5000'
 
 export default function App() {
+  const [treatmentColumn, setTreatmentColumn] = useState('')
+  const [outcomeColumn, setOutcomeColumn] = useState('')
+  const [controlColumns, setControlColumns] = useState([])
   const [file, setFile] = useState(null)
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [connected, setConnected] = useState('not checked')
 
+
+  const availableColumns = analysis?.columns ?? []
+
+const numericColumns = availableColumns.filter(
+  (column) =>
+    column.dtype.includes('int') ||
+    column.dtype.includes('float')
+)
+
+const canRunConfiguration =
+  treatmentColumn !== '' &&
+  outcomeColumn !== '' &&
+  treatmentColumn !== outcomeColumn &&
+  controlColumns.length > 0 &&
+  !controlColumns.includes(treatmentColumn) &&
+  !controlColumns.includes(outcomeColumn)
   const chartData = useMemo(() => {
   if (!analysis?.numeric_summary) return []
 
@@ -175,6 +194,102 @@ const relationshipCharts = analysis?.relationship_charts ?? []
     </div>
   )}
 </section>
+<section className="panel schema-panel">
+  <div className="panel-heading">
+    <div>
+      <h3>DML Configuration</h3>
+      <p>
+        Choose variables before estimating a causal effect.
+      </p>
+    </div>
+  </div>
+
+  {!analysis ? (
+    <p>Upload a CSV file to configure your analysis.</p>
+  ) : (
+    <div className="dml-config">
+      <label>
+        Treatment variable
+        <select
+          value={treatmentColumn}
+          onChange={(e) => {
+            setTreatmentColumn(e.target.value)
+            setControlColumns([])
+          }}
+        >
+          <option value="">Select treatment</option>
+          {numericColumns.map((column) => (
+            <option key={column.name} value={column.name}>
+              {column.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Outcome variable
+        <select
+          value={outcomeColumn}
+          onChange={(e) => setOutcomeColumn(e.target.value)}
+        >
+          <option value="">Select outcome</option>
+          {numericColumns.map((column) => (
+            <option key={column.name} value={column.name}>
+              {column.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div>
+        <p><strong>Control variables</strong></p>
+        {numericColumns
+          .filter(
+            (column) =>
+              column.name !== treatmentColumn &&
+              column.name !== outcomeColumn
+          )
+          .map((column) => (
+            <label key={column.name} className="control-option">
+              <input
+                type="checkbox"
+                checked={controlColumns.includes(column.name)}
+                onChange={(e) => {
+                  setControlColumns((previous) =>
+                    e.target.checked
+                      ? [...previous, column.name]
+                      : previous.filter(
+                          (name) => name !== column.name
+                        )
+                  )
+                }}
+              />
+              {column.name}
+            </label>
+          ))}
+      </div>
+
+      <button
+        type="button"
+        disabled={!canRunConfiguration}
+        onClick={() =>
+          window.alert(
+            `Configuration ready!\nTreatment: ${treatmentColumn}\nOutcome: ${outcomeColumn}\nControls: ${controlColumns.join(', ')}`
+          )
+        }
+      >
+        Validate Configuration
+      </button>
+
+      {!canRunConfiguration && (
+        <p className="config-hint">
+          Select different treatment and outcome variables, plus
+          at least one control variable.
+        </p>
+      )}
+    </div>
+  )}
+</section>
 
         <section className="panel schema-panel"><div className="panel-heading"><div><h3>Dataset profile</h3><p>{analysis ? 'Detected column names and data types' : 'Column details will appear after upload'}</p></div></div>
           {analysis ? <div className="table-wrap"><table><thead><tr><th>Column</th><th>Data type</th><th>Missing values</th></tr></thead><tbody>{analysis.columns.map(c => <tr key={c.name}><td>{c.name}</td><td><span className="type-chip">{c.dtype}</span></td><td>{c.missing}</td></tr>)}</tbody></table></div> : <div className="schema-placeholder"><Database size={18}/> No dataset loaded yet</div>}
@@ -185,9 +300,6 @@ const relationshipCharts = analysis?.relationship_charts ?? []
   )
 }
 
-function Metric({ icon, label, value, note }) {
-  return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
-}
 function Metric({ icon, label, value, note }) {
   return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
 }
