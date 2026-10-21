@@ -204,9 +204,31 @@ const relationshipCharts = analysis?.relationship_charts ?? []
     </div>
   </div>
 
-  {!analysis ? (
-    <p>Upload a CSV file to configure your analysis.</p>
-  ) : (
+ <div className="dml-upload">
+  <label htmlFor="dml-csv-upload" className="upload-button">
+    <UploadCloud size={18} />
+    Upload CSV
+  </label>
+
+  <input
+    id="dml-csv-upload"
+    type="file"
+    accept=".csv,text/csv"
+    onChange={(e) => {
+      const selectedFile = e.target.files?.[0]
+      if (selectedFile) {
+        setFile(selectedFile)
+      }
+    }}
+    hidden
+  />
+
+  <p>
+    {file
+      ? `Selected file: ${file.name}`
+      : "Choose a CSV file to configure your analysis."}
+  </p>
+</div>
     <div className="dml-config">
       <label>
         Treatment variable
@@ -288,17 +310,22 @@ const relationshipCharts = analysis?.relationship_charts ?? []
         </p>
       )}
     </div>
-  )}
+  
 </section>
 
         <section className="panel schema-panel"><div className="panel-heading"><div><h3>Dataset profile</h3><p>{analysis ? 'Detected column names and data types' : 'Column details will appear after upload'}</p></div></div>
           {analysis ? <div className="table-wrap"><table><thead><tr><th>Column</th><th>Data type</th><th>Missing values</th></tr></thead><tbody>{analysis.columns.map(c => <tr key={c.name}><td>{c.name}</td><td><span className="type-chip">{c.dtype}</span></td><td>{c.missing}</td></tr>)}</tbody></table></div> : <div className="schema-placeholder"><Database size={18}/> No dataset loaded yet</div>}
         </section>
-        <footer>ECONOCAUSAL <span>•</span> Week 1 foundation <span>•</span> Double Machine Learning is a planned next step</footer>
+       <footer>ECONOCAUSAL</footer>
       </main>
     </div>
   )
 }
+
+function Metric({ icon, label, value, note }) {
+  return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
+}
+
 
 function Metric({ icon, label, value, note }) {
   return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
