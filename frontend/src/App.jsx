@@ -325,8 +325,3 @@ const relationshipCharts = analysis?.relationship_charts ?? []
 function Metric({ icon, label, value, note }) {
   return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
 }
-
-
-function Metric({ icon, label, value, note }) {
-  return <div className="metric-card"><div className="metric-top"><span className="metric-icon">{icon}</span><span className="metric-note">{note}</span></div><div className="metric-value">{value}</div><div className="metric-label">{label}</div></div>
-}
