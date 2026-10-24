@@ -31,20 +31,29 @@ def analyze_csv():
     try:
         df = pd.read_csv(BytesIO(uploaded.read()))
 
+        # Dataset quality overview
+        row_count = int(len(df))
+        column_count = int(len(df.columns))
+        missing_values = int(df.isna().sum().sum())
+        duplicate_rows = int(df.duplicated().sum())
+        complete_rows = int(df.notna().all(axis=1).sum())
+
+        quality = {
+            "row_count": row_count,
+            "column_count": column_count,
+            "missing_values": missing_values,
+            "duplicate_rows": duplicate_rows,
+            "complete_rows": complete_rows,
+            "missing_percentage": round(
+                (missing_values / df.size) * 100, 2
+            ) if df.size else 0
+        }
+
         if df.empty:
             return jsonify({
                 "error": "The CSV file has no data rows."
             }), 400
 
-        # Column profile
-        columns = []
-
-        for name in df.columns:
-            columns.append({
-                "name": str(name),
-                "dtype": str(df[name].dtype),
-                "missing": int(df[name].isna().sum())
-            })
 
         # Numeric summaries
         numeric = df.select_dtypes(include="number")
@@ -145,6 +154,117 @@ def analyze_csv():
         return jsonify({
             "error": f"Could not analyze CSV: {str(exc)}"
         }), 400
+
+@app.post("/api/dml")
+def run_dml():
+    from sklearn.linear_model import LinearRegression
+    from sklearn.model_selection import KFold
+    import numpy as np
+    import json
+
+    uploaded = request.files.get("file")
+
+    if uploaded is None or uploaded.filename == "":
+        return jsonify({"error": "Please upload a CSV file."}), 400
+
+    try:
+        treatment = request.form.get("treatment", "").strip()
+        outcome = request.form.get("outcome", "").strip()
+        controls = json.loads(request.form.get("controls", "[]"))
+
+        if not isinstance(controls, list):
+            return jsonify({"error": "Controls must be a list."}), 400
+
+        if not treatment or not outcome or treatment == outcome:
+            return jsonify({
+                "error": "Choose different treatment and outcome columns."
+            }), 400
+
+        if not controls:
+            return jsonify({
+                "error": "Select at least one control variable."
+            }), 400
+
+        if treatment in controls or outcome in controls:
+            return jsonify({
+                "error": "Treatment and outcome cannot also be controls."
+            }), 400
+
+        df = pd.read_csv(BytesIO(uploaded.read()))
+
+        required = [treatment, outcome] + controls
+        missing_columns = [c for c in required if c not in df.columns]
+
+        if missing_columns:
+            return jsonify({
+                "error": f"Columns not found: {missing_columns}"
+            }), 400
+
+        data = df[required].apply(pd.to_numeric, errors="coerce")
+        data = data.replace([np.inf, -np.inf], np.nan).dropna()
+
+        if len(data) < 6:
+            return jsonify({
+                "error": "At least 6 complete numeric rows are required."
+            }), 400
+
+        if data[treatment].nunique() < 2:
+            return jsonify({
+                "error": "Treatment must contain at least two different values."
+            }), 400
+
+        T = data[treatment].to_numpy(dtype=float)
+        Y = data[outcome].to_numpy(dtype=float)
+        X = data[controls].to_numpy(dtype=float)
+
+        t_residual = np.zeros(len(data))
+        y_residual = np.zeros(len(data))
+
+        folds = KFold(n_splits=2, shuffle=True, random_state=42)
+
+        for train_idx, test_idx in folds.split(X):
+            model_t = LinearRegression()
+            model_y = LinearRegression()
+
+            model_t.fit(X[train_idx], T[train_idx])
+            model_y.fit(X[train_idx], Y[train_idx])
+
+            t_residual[test_idx] = (
+                T[test_idx] - model_t.predict(X[test_idx])
+            )
+            y_residual[test_idx] = (
+                Y[test_idx] - model_y.predict(X[test_idx])
+            )
+
+        denominator = float(np.dot(t_residual, t_residual))
+
+        if denominator < 1e-10:
+            return jsonify({
+                "error": "Treatment has too little variation after controlling for the selected variables."
+            }), 400
+
+        effect = float(
+            np.dot(t_residual, y_residual) / denominator
+        )
+
+        return jsonify({
+            "method": "Cross-fitted partialling-out DML",
+            "treatment": treatment,
+            "outcome": outcome,
+            "controls": controls,
+            "rows_used": int(len(data)),
+            "estimated_effect": round(effect, 6),
+            "note": (
+                "Exploratory demonstration only. This estimate is not "
+                "proof of causality. Results depend on data quality, "
+                "model assumptions, and confounding."
+            )
+        })
+
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        return jsonify({"error": f"Invalid input: {str(exc)}"}), 400
+    except Exception as exc:
+        return jsonify({"error": f"DML analysis failed: {str(exc)}"}), 400
 
 
 if __name__ == "__main__":
