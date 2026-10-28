@@ -1,383 +1,847 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState } from "react";
 import {
   Activity,
   BarChart3,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Database,
-  FileUp,
+  FileSpreadsheet,
   FlaskConical,
-  LayoutDashboard,
+  Info,
+  LoaderCircle,
   RefreshCw,
   ShieldCheck,
-  UploadCloud,
-} from 'lucide-react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Line,
-  LineChart,
-} from 'recharts'
+  Upload,
+  XCircle,
+} from "lucide-react";
 
-const API = 'http://127.0.0.1:5000'
+const API_BASE = "http://127.0.0.1:5000";
+
+async function apiRequest(path, options = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE}${path}`, options);
+  } catch {
+    throw new Error(
+      "Cannot connect to Flask. Start the backend at http://127.0.0.1:5000."
+    );
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  const result = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const message =
+      typeof result === "object"
+        ? result.error || result.message || result.detail
+        : result;
+
+    throw new Error(message || `Request failed (${response.status}).`);
+  }
+
+  return result;
+}
+
+function Metric({ label, value, detail, icon: Icon }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-top">
+        <span>{label}</span>
+        <span className="metric-icon">
+          <Icon size={19} />
+        </span>
+      </div>
+      <div className="metric-value">{value}</div>
+      <div className="metric-detail" title={detail}>
+        {detail}
+      </div>
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options, disabled }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={onChange} disabled={disabled}>
+        <option value="">Select {label.toLowerCase()}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function parseCSVLine(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"' && inQuotes && line[i + 1] === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values;
+}
 
 export default function App() {
-  const [treatmentColumn, setTreatmentColumn] = useState('')
-  const [outcomeColumn, setOutcomeColumn] = useState('')
-  const [controlColumns, setControlColumns] = useState([])
-  const [file, setFile] = useState(null)
-  const [analysis, setAnalysis] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [connected, setConnected] = useState('not checked')
+  const [file, setFile] = useState(null);
+  const [columns, setColumns] = useState([]);
+  const [previewRows, setPreviewRows] = useState([]);
+  const [rowCount, setRowCount] = useState(null);
 
-  const availableColumns = analysis?.columns ?? []
-  const numericColumns = availableColumns.filter((column) => {
-    const dtype = String(column.dtype || '').toLowerCase()
-    return dtype.includes('int') || dtype.includes('float') || dtype.includes('number')
-  })
+  const [treatment, setTreatment] = useState("");
+  const [outcome, setOutcome] = useState("");
+  const [controls, setControls] = useState([]);
 
-  const canRunConfiguration =
-    treatmentColumn !== '' &&
-    outcomeColumn !== '' &&
-    treatmentColumn !== outcomeColumn &&
-    controlColumns.length > 0 &&
-    !controlColumns.includes(treatmentColumn) &&
-    !controlColumns.includes(outcomeColumn)
+  const [dmlOpen, setDmlOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  const chartData = useMemo(() => {
-    if (!analysis?.numeric_summary) return []
-    return Object.entries(analysis.numeric_summary)
-      .slice(0, 6)
-      .map(([name, values]) => ({
-        name: name.length > 14 ? `${name.slice(0, 12)}...` : name,
-        mean: Number(values.mean ?? 0),
-      }))
-  }, [analysis])
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [health, setHealth] = useState("Unknown");
 
-  const relationshipCharts = analysis?.relationship_charts ?? []
+  const [analysis, setAnalysis] = useState(null);
+  const [validation, setValidation] = useState(null);
+
+  // Fixed: Analysis Status is managed explicitly.
+  const [analysisStatus, setAnalysisStatus] = useState("Not run");
+
+  const controlOptions = useMemo(
+    () =>
+      columns.filter(
+        (column) => column !== treatment && column !== outcome
+      ),
+    [columns, treatment, outcome]
+  );
+
+  function resetResults() {
+    setAnalysis(null);
+    setValidation(null);
+    setAnalysisStatus("Not run");
+    setError("");
+    setNotice("");
+  }
+
+  function handleTreatmentChange(event) {
+    const value = event.target.value;
+    setTreatment(value);
+
+    setControls((previous) =>
+      previous.filter(
+        (column) => column !== value && column !== outcome
+      )
+    );
+
+    resetResults();
+  }
+
+  function handleOutcomeChange(event) {
+    const value = event.target.value;
+    setOutcome(value);
+
+    setControls((previous) =>
+      previous.filter(
+        (column) => column !== treatment && column !== value
+      )
+    );
+
+    resetResults();
+  }
+
+  function handleControlsChange(event) {
+    setControls(
+      Array.from(
+        event.target.selectedOptions,
+        (option) => option.value
+      )
+    );
+
+    resetResults();
+  }
 
   async function checkBackend() {
+    setChecking(true);
+    setError("");
+    setNotice("");
+
     try {
-      const response = await fetch(`${API}/api/health`)
-      if (!response.ok) throw new Error(`Backend returned HTTP ${response.status}`)
-      setConnected('connected')
-      setError('')
-    } catch {
-      setConnected('offline')
-      setError(
-        'Cannot reach the Flask backend. Keep the backend running in a separate terminal with: python app.py',
-      )
+      await apiRequest("/api/health");
+      setHealth("Connected");
+      setNotice("Backend connection successful.");
+    } catch (err) {
+      setHealth("Unavailable");
+      setError(err.message);
+    } finally {
+      setChecking(false);
     }
   }
 
-  async function uploadFile() {
-    if (!file) {
-      setError('Choose a CSV file first.')
-      return
+  async function handleFileChange(event) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+
+    resetResults();
+
+    if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
+      setError("Please upload a CSV file.");
+      event.target.value = "";
+      return;
     }
 
-    setLoading(true)
-    setError('')
-
-    const body = new FormData()
-    body.append('file', file)
+    setFile(null);
+    setColumns([]);
+    setPreviewRows([]);
+    setRowCount(null);
+    setTreatment("");
+    setOutcome("");
+    setControls([]);
+    setError("");
+    setNotice("Reading CSV file...");
 
     try {
-      const response = await fetch(`${API}/api/analyze`, {
-        method: 'POST',
-        body,
-      })
-      const data = await response.json().catch(() => ({}))
+      const text = await selectedFile.text();
+      const lines = text
+        .split(/\r?\n/)
+        .filter((line) => line.trim() !== "");
 
-      if (!response.ok) {
-        throw new Error(data.error || `Upload failed (HTTP ${response.status})`)
+      if (lines.length < 2) {
+        throw new Error(
+          "The CSV must contain a header and at least one data row."
+        );
       }
 
-      setAnalysis(data)
-      setConnected('connected')
-      setTreatmentColumn('')
-      setOutcomeColumn('')
-      setControlColumns([])
+      const headers = parseCSVLine(lines[0]).map((name) =>
+        name.replace(/^\uFEFF/, "").trim()
+      );
+
+      if (headers.some((name) => !name)) {
+        throw new Error("Your CSV contains an empty column name.");
+      }
+
+      if (new Set(headers).size !== headers.length) {
+        throw new Error("Your CSV contains duplicate column names.");
+      }
+
+      const parsedRows = lines.slice(1, 6).map(parseCSVLine);
+
+      setFile(selectedFile);
+      setColumns(headers);
+      setPreviewRows(parsedRows);
+      setRowCount(lines.length - 1);
+      setNotice(
+        `Loaded ${selectedFile.name}. Select your DML variables to continue.`
+      );
     } catch (err) {
-      setError(
-        err instanceof TypeError
-          ? 'Failed to fetch. Check that the Flask backend is running at http://127.0.0.1:5000 and that CORS is enabled.'
-          : err.message || 'Something went wrong while uploading the CSV.',
-      )
+      setFile(null);
+      setError(err.message || "Could not read this CSV file.");
+      setNotice("");
     } finally {
-      setLoading(false)
+      event.target.value = "";
     }
   }
 
-  function clearDataset() {
-    setFile(null)
-    setAnalysis(null)
-    setError('')
-    setTreatmentColumn('')
-    setOutcomeColumn('')
-    setControlColumns([])
+  function validateSelection() {
+    if (!file) {
+      setError("Upload a CSV file first.");
+      return false;
+    }
+
+    if (!treatment || !outcome) {
+      setError("Select both treatment and outcome columns.");
+      return false;
+    }
+
+    if (treatment === outcome) {
+      setError("Treatment and outcome must be different columns.");
+      return false;
+    }
+
+    if (controls.includes(treatment) || controls.includes(outcome)) {
+      setError(
+        "Treatment and outcome cannot also be control variables."
+      );
+      return false;
+    }
+
+    if (rowCount !== null && rowCount < 10) {
+      setError(`Upload at least 10 rows. Found ${rowCount}.`);
+      return false;
+    }
+
+    return true;
   }
 
-  function validateConfiguration() {
-    window.alert(
-      `Configuration ready!\nTreatment: ${treatmentColumn}\nOutcome: ${outcomeColumn}\nControls: ${controlColumns.join(', ')}`,
-    )
+  function createFormData() {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("treatment", treatment);
+    form.append("outcome", outcome);
+    form.append("controls", JSON.stringify(controls));
+    return form;
   }
+
+  async function runValidation() {
+    if (loading || !validateSelection()) return;
+
+    setLoading(true);
+    setError("");
+    setNotice("");
+    setValidation(null);
+    setAnalysisStatus("Validating");
+
+    try {
+      // Requires POST /api/validate in backend/app.py.
+      const result = await apiRequest("/api/validate", {
+        method: "POST",
+        body: createFormData(),
+      });
+
+      setValidation(result);
+
+      const valid =
+        result.valid !== false && result.is_valid !== false;
+
+      setAnalysisStatus(valid ? "Validated" : "Failed");
+      setNotice(
+        result.message || "Dataset validation request completed."
+      );
+    } catch (err) {
+      setAnalysisStatus("Failed");
+      setError(
+        `${err.message} Confirm that your backend supports POST /api/validate.`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runDML() {
+    if (loading || !validateSelection()) return;
+
+    setLoading(true);
+    setError("");
+    setNotice("");
+    setAnalysis(null);
+    setValidation(null);
+
+    // Status changes immediately when the user starts the request.
+    setAnalysisStatus("Running");
+
+    try {
+      // Requires POST /api/dml in backend/app.py.
+      const result = await apiRequest("/api/dml", {
+        method: "POST",
+        body: createFormData(),
+      });
+
+      setAnalysis(result);
+      setAnalysisStatus("Completed");
+      setNotice("DML analysis completed successfully.");
+    } catch (err) {
+      setAnalysisStatus("Failed");
+      setError(
+        `${err.message} Confirm that your backend supports POST /api/dml and accepts these form fields.`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function removeDataset() {
+    setFile(null);
+    setColumns([]);
+    setPreviewRows([]);
+    setRowCount(null);
+    setTreatment("");
+    setOutcome("");
+    setControls([]);
+    resetResults();
+  }
+
+  const resultValue =
+    analysis?.treatment_effect ??
+    analysis?.effect ??
+    analysis?.ate ??
+    analysis?.estimated_effect ??
+    analysis?.causal_effect;
+
+  const statusDetail = {
+    "Not run": "Ready when you are",
+    Running: "DML analysis is in progress",
+    Validating: "Checking selected dataset",
+    Validated: "Dataset validation completed",
+    Completed: "Analysis response received",
+    Failed: "Check the error message",
+  }[analysisStatus];
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark"><Activity size={22} /></div>
+          <div className="brand-mark">
+            <Activity size={23} />
+          </div>
           <div>
-            <strong>EconoCausal</strong>
-            <span>PRICING INTELLIGENCE</span>
+            <div className="brand-name">EconoCausal</div>
+            <div className="brand-caption">PRICING INTELLIGENCE</div>
           </div>
         </div>
 
-        <div className="nav-label">WORKSPACE</div>
-        <div className="nav-item active"><LayoutDashboard size={18} /> Dashboard</div>
-        <div className="nav-item"><Database size={18} /> Data workspace</div>
-        <div className="nav-item"><FlaskConical size={18} /> Causal analysis <span className="soon">SOON</span></div>
-        <div className="nav-item"><BarChart3 size={18} /> Budget optimizer <span className="soon">SOON</span></div>
+        <div className="side-label">WORKSPACE</div>
+
+        <div className="side-item active">
+          <BarChart3 size={18} />
+          Overview
+        </div>
+
+        <button
+          className="side-item side-button"
+          onClick={() => setDmlOpen((open) => !open)}
+        >
+          <FlaskConical size={18} />
+          DML Analysis
+          <span className="side-chevron">
+            {dmlOpen ? (
+              <ChevronUp size={16} />
+            ) : (
+              <ChevronDown size={16} />
+            )}
+          </span>
+        </button>
+
+        <button
+          className="side-item side-button"
+          onClick={checkBackend}
+          disabled={checking}
+        >
+          <Database size={18} />
+          Backend Status
+        </button>
 
         <div className="sidebar-bottom">
-          <ShieldCheck size={17} />
-          <span>
-            Local prototype<br />
-            <small>Your uploaded file is analyzed by your local backend.</small>
-          </span>
+          <div className="sidebar-status">
+            <span
+              className={`status-dot ${
+                health === "Connected" ? "online" : ""
+              }`}
+            />
+            <div>
+              <div className="status-title">API Status</div>
+              <div className="status-subtitle">{health}</div>
+            </div>
+          </div>
+          <div className="sidebar-footer">
+            EconoCausal · Internship Project
+          </div>
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main-content">
         <header className="topbar">
           <div>
-            <p className="eyebrow">ECONOMICS × MACHINE LEARNING</p>
-            <h1>Pricing intelligence dashboard</h1>
-            <p className="subtitle">Understand your data before estimating the impact of discounts.</p>
+            <div className="breadcrumb">
+              Workspace / <strong>Overview</strong>
+            </div>
+            <h1>Pricing Intelligence Dashboard</h1>
+            <p className="page-subtitle">
+              Analyze your data and estimate the impact of pricing decisions.
+            </p>
           </div>
-          <button className="outline-btn" onClick={checkBackend}>
-            <RefreshCw size={16} /> Test connection
+
+          <button
+            className="outline-button"
+            onClick={checkBackend}
+            disabled={checking}
+          >
+            {checking ? (
+              <LoaderCircle className="spin" size={16} />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            Check connection
           </button>
         </header>
 
-        <section className="welcome">
-          <div>
-            <h2>Make every discount a data-driven decision.</h2>
-            <p>Upload a CSV to inspect your dataset, review numeric summaries, and prepare variables for causal analysis.</p>
+        {error && (
+          <div className="alert alert-error" role="alert">
+            <XCircle size={19} />
+            <span>{error}</span>
+            <button
+              className="alert-close"
+              onClick={() => setError("")}
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
           </div>
-          <div className="welcome-icon"><BarChart3 size={44} /></div>
+        )}
+
+        {notice && !error && (
+          <div className="alert alert-success" role="status">
+            <CheckCircle2 size={19} />
+            <span>{notice}</span>
+            <button
+              className="alert-close"
+              onClick={() => setNotice("")}
+              aria-label="Dismiss notice"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <section className="welcome-banner">
+          <div className="banner-icon">
+            <Activity size={23} />
+          </div>
+          <div className="banner-copy">
+            <div className="eyebrow">CAUSAL ANALYSIS WORKSPACE</div>
+            <h2>Make every pricing decision data-driven.</h2>
+            <p>
+              Upload a sales dataset, configure your variables, and run
+              Double Machine Learning when your backend is ready.
+            </p>
+          </div>
+          <div className="banner-decoration">
+            <BarChart3 size={76} />
+          </div>
         </section>
 
-        <section className="metrics">
-          <Metric icon={<Database size={19} />} label="Rows in dataset" value={analysis ? Number(analysis.rows ?? 0).toLocaleString() : '—'} note="After CSV upload" />
-          <Metric icon={<BarChart3 size={19} />} label="Columns detected" value={analysis ? availableColumns.length : '—'} note="Features and outcomes" />
-          <Metric icon={<Activity size={19} />} label="Numeric fields" value={analysis ? Object.keys(analysis.numeric_summary || {}).length : '—'} note="Ready for exploration" />
-          <Metric icon={<ShieldCheck size={19} />} label="API status" value={connected === 'connected' ? 'Online' : connected === 'offline' ? 'Offline' : 'Unknown'} note="Flask connection" />
+        <section className="metrics-grid">
+          <Metric
+            label="Dataset"
+            value={file ? "Uploaded" : "No dataset"}
+            detail={file ? file.name : "Upload a CSV to begin"}
+            icon={FileSpreadsheet}
+          />
+
+          <Metric
+            label="Total rows"
+            value={
+              rowCount === null ? "—" : rowCount.toLocaleString()
+            }
+            detail="Rows read from CSV"
+            icon={Database}
+          />
+
+          <Metric
+            label="Available columns"
+            value={columns.length || "—"}
+            detail="Detected from CSV header"
+            icon={BarChart3}
+          />
+
+          <Metric
+            label="Analysis status"
+            value={analysisStatus}
+            detail={statusDetail}
+            icon={FlaskConical}
+          />
         </section>
 
         <section className="content-grid">
           <div className="panel upload-panel">
             <div className="panel-heading">
-              <div><h3>Dataset workspace</h3><p>Upload your pricing or sales data</p></div>
-              <span className="step-tag">STEP 01</span>
+              <div>
+                <h3>Dataset</h3>
+                <p>Import your sales data to get started.</p>
+              </div>
+              <span className="step-badge">STEP 01</span>
             </div>
 
-            <label className="dropzone">
+            <label className="upload-zone">
               <input
                 type="file"
                 accept=".csv,text/csv"
-                onChange={(event) => {
-                  setFile(event.target.files?.[0] || null)
-                  setError('')
-                }}
+                onChange={handleFileChange}
               />
-              <div className="upload-icon"><UploadCloud size={25} /></div>
-              <strong>{file ? file.name : 'Choose a CSV file'}</strong>
-              <span>{file ? `${(file.size / 1024).toFixed(1)} KB · ready to analyze` : 'Click here to browse your computer'}</span>
-              <small>CSV format · Include column headers</small>
+              <div className="upload-icon">
+                <Upload size={23} />
+              </div>
+              <strong>
+                {file ? file.name : "Click to upload your CSV"}
+              </strong>
+              <span>
+                {file
+                  ? `${(file.size / 1024).toFixed(1)} KB · CSV file`
+                  : "Choose a CSV file from your computer"}
+              </span>
+              <span className="upload-action">
+                {file ? "Choose another file" : "Browse files"}
+              </span>
             </label>
 
-            <div className="button-row">
-              <button className="primary-btn" onClick={uploadFile} disabled={loading}>
-                {loading ? 'Analyzing…' : <><FileUp size={17} /> Upload &amp; analyze</>}
-              </button>
-              <button className="text-btn" onClick={clearDataset}>Clear</button>
-            </div>
+            {file && (
+              <div className="file-info">
+                <FileSpreadsheet size={19} />
+                <div className="file-info-copy">
+                  <strong>{file.name}</strong>
+                  <span>
+                    {columns.length} columns · {rowCount} data rows
+                  </span>
+                </div>
+                <button
+                  className="icon-button"
+                  aria-label="Remove dataset"
+                  onClick={removeDataset}
+                >
+                  <XCircle size={18} />
+                </button>
+              </div>
+            )}
 
-            {error && <div className="error-box" role="alert">{error}</div>}
-            {analysis && <div className="success-box">Dataset loaded successfully. Basic profile generated.</div>}
-            <div className="tip"><strong>Tip</strong><span>Try <code>sample_data/pricing_data.csv</code> from your project folder.</span></div>
+            <div className="info-note">
+              <Info size={17} />
+              <span>
+                Use at least 10 rows and numeric analysis columns for DML
+                validation.
+              </span>
+            </div>
           </div>
 
-          <div className="panel chart-panel">
+          <div className="panel config-panel">
             <div className="panel-heading">
-              <div><h3>Numeric field overview</h3><p>Average values for the first six numeric columns</p></div>
+              <div>
+                <h3>Analysis configuration</h3>
+                <p>Define the variables for your causal model.</p>
+              </div>
+              <span className="step-badge">STEP 02</span>
             </div>
-            {chartData.length > 0 ? (
-              <div className="chart">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8eee9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64756d' }} angle={-18} textAnchor="end" interval={0} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64756d' }} />
-                    <Tooltip />
-                    <Bar dataKey="mean" name="Mean" fill="#28745a" radius={[5, 5, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+
+            <div className="variable-fields">
+              <SelectField
+                label="Treatment"
+                value={treatment}
+                onChange={handleTreatmentChange}
+                options={columns}
+                disabled={!file}
+              />
+
+              <SelectField
+                label="Outcome"
+                value={outcome}
+                onChange={handleOutcomeChange}
+                options={columns}
+                disabled={!file}
+              />
+            </div>
+
+            <button
+              className="dml-toggle-row"
+              onClick={() => setDmlOpen((open) => !open)}
+              aria-expanded={dmlOpen}
+            >
+              <span className="dml-toggle-icon">
+                <FlaskConical size={18} />
+              </span>
+              <span className="dml-toggle-copy">
+                <strong>DML Configuration</strong>
+                <span>
+                  Choose control variables and configure analysis.
+                </span>
+              </span>
+              {dmlOpen ? (
+                <ChevronUp size={19} />
+              ) : (
+                <ChevronDown size={19} />
+              )}
+            </button>
+
+            {dmlOpen && (
+              <div className="dml-panel">
+                <label className="field">
+                  <span>Control variables</span>
+                  <select
+                    multiple
+                    value={controls}
+                    onChange={handleControlsChange}
+                    disabled={!file || controlOptions.length === 0}
+                    size={Math.min(
+                      Math.max(controlOptions.length, 2),
+                      5
+                    )}
+                  >
+                    {controlOptions.map((column) => (
+                      <option key={column} value={column}>
+                        {column}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    Hold Ctrl on Windows to select multiple controls.
+                  </small>
+                </label>
+
+                <div className="selection-summary">
+                  <div>
+                    <span>Treatment</span>
+                    <strong>{treatment || "Not selected"}</strong>
+                  </div>
+                  <div>
+                    <span>Outcome</span>
+                    <strong>{outcome || "Not selected"}</strong>
+                  </div>
+                  <div>
+                    <span>Controls selected</span>
+                    <strong>{controls.length}</strong>
+                  </div>
+                </div>
+
+                <div className="dml-actions">
+                  <button
+                    className="outline-button"
+                    onClick={runValidation}
+                    disabled={loading || !file}
+                  >
+                    {loading ? (
+                      <LoaderCircle className="spin" size={16} />
+                    ) : (
+                      <ShieldCheck size={16} />
+                    )}
+                    Validate dataset
+                  </button>
+
+                  <button
+                    className="primary-button"
+                    onClick={runDML}
+                    disabled={loading || !file}
+                  >
+                    {loading ? (
+                      <LoaderCircle className="spin" size={16} />
+                    ) : (
+                      <FlaskConical size={16} />
+                    )}
+                    Run DML analysis
+                  </button>
+                </div>
               </div>
-            ) : (
-              <div className="empty-chart">
-                <div className="empty-icon"><BarChart3 size={28} /></div>
-                <strong>Your chart will appear here</strong>
-                <span>Upload a CSV to view basic numeric summaries.</span>
-              </div>
+            )}
+
+            {!dmlOpen && (
+              <button
+                className="primary-button full-button"
+                onClick={() => setDmlOpen(true)}
+              >
+                Configure DML <ChevronDown size={17} />
+              </button>
             )}
           </div>
         </section>
 
-        <section className="panel schema-panel">
-          <div className="panel-heading">
-            <div><h3>Feature vs Sales Analysis</h3><p>Relationships calculated from your uploaded dataset</p></div>
-          </div>
-          {relationshipCharts.length > 0 ? (
-            <div className="relationship-grid">
-              {relationshipCharts.map((chart) => (
-                <div className="relationship-card" key={`${chart.x_column}-${chart.y_column}`}>
-                  <h4>{chart.x_column} vs {chart.y_column}</h4>
-                  <div className="relationship-chart">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chart.data || []} margin={{ top: 10, right: 20, left: 5, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis
-                          type="number"
-                          dataKey="x"
-                          name={chart.x_column}
-                          label={{ value: chart.x_column, position: 'insideBottom', offset: -12 }}
-                        />
-                        <YAxis type="number" dataKey="y" name={chart.y_column} />
-                        <Tooltip
-                          formatter={(value) => Number(value).toFixed(2)}
-                          labelFormatter={(value) => `${chart.x_column}: ${value}`}
-                        />
-                        <Line type="monotone" dataKey="y" name={chart.y_column} stroke="#28745a" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="schema-placeholder">Upload a CSV containing numeric columns and a sales or revenue column to view relationship charts.</div>
-          )}
-        </section>
-
-        <section className="panel schema-panel">
-          <div className="panel-heading">
-            <div><h3>DML Configuration</h3><p>Choose variables before estimating a causal effect.</p></div>
-          </div>
-
-          {!analysis ? (
-            <p>Upload a CSV file to configure your analysis.</p>
-          ) : (
-            <div className="dml-config">
-              <label>
-                Treatment variable
-                <select value={treatmentColumn} onChange={(event) => {
-                  setTreatmentColumn(event.target.value)
-                  setControlColumns([])
-                }}>
-                  <option value="">Select treatment</option>
-                  {numericColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
-                </select>
-              </label>
-
-              <label>
-                Outcome variable
-                <select value={outcomeColumn} onChange={(event) => setOutcomeColumn(event.target.value)}>
-                  <option value="">Select outcome</option>
-                  {numericColumns.map((column) => <option key={column.name} value={column.name}>{column.name}</option>)}
-                </select>
-              </label>
-
+        {previewRows.length > 0 && (
+          <section className="panel preview-panel">
+            <div className="panel-heading">
               <div>
-                <p><strong>Control variables</strong></p>
-                {numericColumns
-                  .filter((column) => column.name !== treatmentColumn && column.name !== outcomeColumn)
-                  .map((column) => (
-                    <label key={column.name} className="control-option">
-                      <input
-                        type="checkbox"
-                        checked={controlColumns.includes(column.name)}
-                        onChange={(event) => setControlColumns((previous) => (
-                          event.target.checked
-                            ? [...previous, column.name]
-                            : previous.filter((name) => name !== column.name)
-                        ))}
-                      />
-                      {column.name}
-                    </label>
-                  ))}
+                <h3>Dataset preview</h3>
+                <p>Showing up to the first five data rows.</p>
               </div>
-
-              <button type="button" disabled={!canRunConfiguration} onClick={validateConfiguration}>
-                Validate Configuration
-              </button>
-              {!canRunConfiguration && (
-                <p className="config-hint">Select different treatment and outcome variables, plus at least one control variable.</p>
-              )}
+              <span className="step-badge">CSV PREVIEW</span>
             </div>
-          )}
-        </section>
 
-        <section className="panel schema-panel">
-          <div className="panel-heading">
-            <div>
-              <h3>Dataset profile</h3>
-              <p>{analysis ? 'Detected column names and data types' : 'Column details will appear after upload'}</p>
-            </div>
-          </div>
-          {analysis ? (
-            <div className="table-wrap">
+            <div className="table-scroll">
               <table>
-                <thead><tr><th>Column</th><th>Data type</th><th>Missing values</th></tr></thead>
+                <thead>
+                  <tr>
+                    {columns.map((column) => (
+                      <th key={column}>{column}</th>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody>
-                  {availableColumns.map((column) => (
-                    <tr key={column.name}>
-                      <td>{column.name}</td>
-                      <td><span className="type-chip">{column.dtype}</span></td>
-                      <td>{column.missing}</td>
+                  {previewRows.map((row, index) => (
+                    <tr key={index}>
+                      {columns.map((column, columnIndex) => (
+                        <td key={column}>
+                          {row[columnIndex] ?? ""}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : (
-            <div className="schema-placeholder"><Database size={18} /> No dataset loaded yet</div>
-          )}
-        </section>
+          </section>
+        )}
 
-        <footer>ECONOCAUSAL <span>•</span> Pricing intelligence dashboard</footer>
+        {(validation || analysis) && (
+          <section className="panel results-panel">
+            <div className="panel-heading">
+              <div>
+                <h3>Analysis results</h3>
+                <p>Response returned by your backend API.</p>
+              </div>
+              <span className="result-status">
+                <CheckCircle2 size={15} /> Response received
+              </span>
+            </div>
+
+            {validation && (
+              <div className="validation-result">
+                <ShieldCheck size={20} />
+                <div>
+                  <strong>
+                    {validation.message ||
+                      "Validation response received"}
+                  </strong>
+                  <p>
+                    {validation.valid === false ||
+                    validation.is_valid === false
+                      ? "The dataset did not pass validation."
+                      : "Review the validation response below."}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {analysis && resultValue !== undefined && (
+              <div className="effect-result">
+                <span>Estimated treatment effect</span>
+                <strong>{String(resultValue)}</strong>
+                <p>
+                  Interpret this estimate using the model details and
+                  assumptions.
+                </p>
+              </div>
+            )}
+
+            <details className="raw-result">
+              <summary>View complete API response</summary>
+              <pre>
+                {JSON.stringify(analysis || validation, null, 2)}
+              </pre>
+            </details>
+          </section>
+        )}
+
+        <footer className="page-footer">
+          <span>EconoCausal · Pricing Intelligence</span>
+          <span>
+            Data-driven decisions start with reliable data.
+          </span>
+        </footer>
       </main>
     </div>
-  )
+  );
 }
-
-function Metric({ icon, label, value, note }) {
-  return (
-    <div className="metric-card">
-      <div className="metric-top">
-        <span className="metric-icon">{icon}</span>
-        <span className="metric-note">{note}</span>
-      </div>
-      <div className="metric-value">{value}</div>
-      <div className="metric-label">{label}</div>
-    </div>
-  )
-}
-
