@@ -109,6 +109,7 @@ export default function App() {
   const [columns, setColumns] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
   const [rowCount, setRowCount] = useState(null);
+  const [quality, setQuality] = useState(null);
 
   const [treatment, setTreatment] = useState("");
   const [outcome, setOutcome] = useState("");
@@ -245,6 +246,52 @@ export default function App() {
       }
 
       const parsedRows = lines.slice(1, 6).map(parseCSVLine);
+      
+const allRows = lines.slice(1).map(parseCSVLine);
+
+const missingValues = allRows.reduce(
+  (total, row) =>
+    total +
+    headers.filter((_, index) => !(row[index] ?? "").trim()).length,
+  0
+);
+
+const duplicateRows = allRows.length -
+  new Set(allRows.map((row) => JSON.stringify(row))).size;
+
+const columnStats = headers.map((name, index) => {
+  const values = allRows
+    .map((row) => (row[index] ?? "").trim())
+    .filter(Boolean);
+
+  const numeric = values.length > 0 &&
+    values.every((value) => Number.isFinite(Number(value)));
+
+  return {
+    name,
+    dataType: numeric ? "Numeric" : "Text",
+    missing: allRows.length - values.length,
+  };
+});
+
+const completeRows = allRows.filter((row) =>
+  headers.every((_, index) => (row[index] ?? "").trim() !== "")
+).length;
+
+setQuality({
+  rowCount: allRows.length,
+  columnCount: headers.length,
+  missingValues,
+  duplicateRows,
+  completeRows,
+  missingPercentage: allRows.length * headers.length
+    ? Number(
+        ((missingValues / (allRows.length * headers.length)) * 100).toFixed(2)
+      )
+    : 0,
+  columnStats,
+});
+
 
       setFile(selectedFile);
       setColumns(headers);
@@ -378,6 +425,7 @@ export default function App() {
     setOutcome("");
     setControls([]);
     resetResults();
+    setQuality(null);
   }
 
   const resultValue =
@@ -528,6 +576,55 @@ export default function App() {
             <BarChart3 size={76} />
           </div>
         </section>
+
+{quality && (
+  <section className="panel">
+    <div className="panel-heading">
+      <div>
+        <h3>Dataset Quality Report</h3>
+        <p>Check data completeness before running DML.</p>
+      </div>
+      <span className="step-badge">DATA QUALITY</span>
+    </div>
+
+    <div className="metrics-grid">
+      <Metric label="Rows" value={quality.rowCount}
+        detail="Total data rows" icon={Database} />
+      <Metric label="Columns" value={quality.columnCount}
+        detail="Detected columns" icon={BarChart3} />
+      <Metric label="Missing values" value={quality.missingValues}
+        detail={`${quality.missingPercentage}% of all cells`}
+        icon={Info} />
+      <Metric label="Duplicate rows" value={quality.duplicateRows}
+        detail="Repeated complete rows" icon={ShieldCheck} />
+    </div>
+
+    <p>
+      Complete rows: {quality.completeRows} / {quality.rowCount}
+    </p>
+
+    <div className="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Detected type</th>
+            <th>Missing values</th>
+          </tr>
+        </thead>
+        <tbody>
+          {quality.columnStats.map((column) => (
+            <tr key={column.name}>
+              <td>{column.name}</td>
+              <td>{column.dataType}</td>
+              <td>{column.missing}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
 
         <section className="metrics-grid">
           <Metric
