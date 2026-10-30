@@ -95,7 +95,7 @@ def safe_number(value):
 @app.get("/")
 def root():
     return jsonify({"service": "EconoCausal API", "status": "ok", "docs": [
-        "/api/health", "/api/analyze", "/api/validate", "/api/validation-report", "/api/dml"
+        "/api/health", "/api/analyze", "/api/validate", "/api/validation-report", "/api/dml", "/api/statistics"
     ]})
 
 
@@ -324,6 +324,48 @@ def run_dml():
     except Exception as exc:
         app.logger.exception("DML analysis failed")
         return jsonify({"error": f"DML analysis failed: {str(exc)}"}), 400
+
+
+@app.post("/api/statistics")
+def dataset_statistics():
+    """Day 18: calculate descriptive statistics for numeric CSV columns."""
+    df, error, status = read_uploaded_csv()
+    if error:
+        return jsonify({"error": error}), status
+
+    try:
+        numeric = df.select_dtypes(include="number")
+        statistics = {}
+
+        for column in numeric.columns:
+            values = pd.to_numeric(numeric[column], errors="coerce")
+            clean = values.replace([np.inf, -np.inf], np.nan).dropna()
+
+            statistics[str(column)] = {
+                "count": int(clean.count()),
+                "mean": safe_number(clean.mean()) if not clean.empty else None,
+                "median": safe_number(clean.median()) if not clean.empty else None,
+                "std": safe_number(clean.std()) if len(clean) > 1 else 0,
+                "min": safe_number(clean.min()) if not clean.empty else None,
+                "q1": safe_number(clean.quantile(0.25)) if not clean.empty else None,
+                "q3": safe_number(clean.quantile(0.75)) if not clean.empty else None,
+                "max": safe_number(clean.max()) if not clean.empty else None,
+                "missing": int(df[column].isna().sum()),
+            }
+
+        return jsonify({
+            "filename": request.files["file"].filename,
+            "row_count": int(len(df)),
+            "numeric_column_count": int(len(numeric.columns)),
+            "statistics": statistics,
+            "message": (
+                "Descriptive statistics calculated."
+                if statistics else "No numeric columns were found."
+            ),
+        })
+    except Exception as exc:
+        app.logger.exception("Descriptive statistics failed")
+        return jsonify({"error": f"Could not calculate statistics: {str(exc)}"}), 400
 
 
 @app.errorhandler(413)
