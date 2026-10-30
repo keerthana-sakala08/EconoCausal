@@ -125,6 +125,8 @@ export default function App() {
 
   const [analysis, setAnalysis] = useState(null);
   const [validation, setValidation] = useState(null);
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
 
   // Fixed: Analysis Status is managed explicitly.
   const [analysisStatus, setAnalysisStatus] = useState("Not run");
@@ -140,6 +142,7 @@ export default function App() {
   function resetResults() {
     setAnalysis(null);
     setValidation(null);
+    setStatistics(null);
     setAnalysisStatus("Not run");
     setError("");
     setNotice("");
@@ -347,6 +350,37 @@ setQuality({
     form.append("outcome", outcome);
     form.append("controls", JSON.stringify(controls));
     return form;
+  }
+
+
+  async function runStatistics() {
+    if (!file || statisticsLoading) {
+      if (!file) setError("Upload a CSV file first.");
+      return;
+    }
+
+    setStatisticsLoading(true);
+    setError("");
+    setNotice("");
+    setStatistics(null);
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const result = await apiRequest("/api/statistics", {
+        method: "POST",
+        body: form,
+      });
+      setStatistics(result);
+      setNotice(result.message || "Descriptive statistics calculated.");
+    } catch (err) {
+      setError(
+        `${err.message} Confirm that your backend supports POST /api/statistics.`
+      );
+    } finally {
+      setStatisticsLoading(false);
+    }
   }
 
   async function runValidation() {
@@ -626,6 +660,75 @@ setQuality({
   </section>
 )}
 
+
+        {statistics && (
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h3>Statistical Insights</h3>
+                <p>
+                  Descriptive statistics for numeric columns in {statistics.filename}.
+                </p>
+              </div>
+              <span className="step-badge">DAY 18</span>
+            </div>
+
+            <div className="metrics-grid">
+              <Metric
+                label="Rows analysed"
+                value={statistics.row_count}
+                detail="Rows in uploaded dataset"
+                icon={Database}
+              />
+              <Metric
+                label="Numeric columns"
+                value={statistics.numeric_column_count}
+                detail="Columns included in this report"
+                icon={BarChart3}
+              />
+            </div>
+
+            {Object.keys(statistics.statistics || {}).length > 0 ? (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Column</th>
+                      <th>Count</th>
+                      <th>Mean</th>
+                      <th>Median</th>
+                      <th>Std. Dev.</th>
+                      <th>Minimum</th>
+                      <th>Q1</th>
+                      <th>Q3</th>
+                      <th>Maximum</th>
+                      <th>Missing</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(statistics.statistics).map(([name, values]) => (
+                      <tr key={name}>
+                        <td>{name}</td>
+                        <td>{values.count}</td>
+                        <td>{values.mean ?? "—"}</td>
+                        <td>{values.median ?? "—"}</td>
+                        <td>{values.std ?? "—"}</td>
+                        <td>{values.min ?? "—"}</td>
+                        <td>{values.q1 ?? "—"}</td>
+                        <td>{values.q3 ?? "—"}</td>
+                        <td>{values.max ?? "—"}</td>
+                        <td>{values.missing}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>No numeric columns were found in this CSV file.</p>
+            )}
+          </section>
+        )}
+
         <section className="metrics-grid">
           <Metric
             label="Dataset"
@@ -744,6 +847,19 @@ setQuality({
                 disabled={!file}
               />
             </div>
+
+            <button
+              className="outline-button full-button"
+              onClick={runStatistics}
+              disabled={!file || statisticsLoading}
+            >
+              {statisticsLoading ? (
+                <LoaderCircle className="spin" size={16} />
+              ) : (
+                <BarChart3 size={16} />
+              )}
+              Generate statistical insights
+            </button>
 
             <button
               className="dml-toggle-row"
