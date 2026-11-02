@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, BarChart3, CheckCircle2, ChevronLeft, ChevronRight,
   Database, FileSpreadsheet, FlaskConical, FolderOpen, LayoutDashboard,
@@ -189,6 +189,39 @@ function App() {
   const [xColumn, setXColumn] = useState("");
   const [yColumn, setYColumn] = useState("");
   const [distributionColumn, setDistributionColumn] = useState("");
+
+  // Check the Flask API automatically when the dashboard first loads.
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyBackend() {
+      setChecking(true);
+      setHealth("Checking");
+
+      try {
+        await apiRequest("/api/health");
+
+        if (isMounted) {
+          setHealth("Connected");
+        }
+      } catch (err) {
+        if (isMounted) {
+          setHealth("Unavailable");
+          setError(err.message || "Could not connect to the backend.");
+        }
+      } finally {
+        if (isMounted) {
+          setChecking(false);
+        }
+      }
+    }
+
+    verifyBackend();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const numericColumns = useMemo(() => {
     return columns.filter((column) => {
