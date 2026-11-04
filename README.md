@@ -1,210 +1,286 @@
+# EconoCausal – Data Analysis and Causal Inference Platform
 
-# EconoCausal — Dynamic Pricing via Double Machine Learning
+## 📌 Project Overview
 
-A beginner-friendly data science project focused on analyzing pricing strategies and sales performance using machine learning and Double Machine Learning (DML) concepts.
+EconoCausal is a web-based data analysis and causal inference application designed to help users understand how different factors influence business outcomes.
 
-The project includes a React dashboard, a Flask backend, CSV data analysis, baseline regression, a DML demonstration, model evaluation, and data visualization.
+Users can upload CSV datasets, explore data, validate data quality, perform regression analysis, and estimate causal effects using Double Machine Learning (DML).
 
-## Project Objectives
+The application provides an interactive dashboard with visualizations, analytical results, metrics, and reports.
 
-- Analyze sales and pricing datasets.
-- Understand the relationship between discounts, advertising, and sales.
-- Build a dashboard for CSV upload and dataset analysis.
-- Calculate descriptive statistics and evaluate a baseline regression model.
-- Demonstrate Double Machine Learning concepts for estimating the effect of discounts on sales.
-- Develop a foundation for dynamic pricing analysis.
+## 🎯 Project Objectives
 
-## Technologies Used
+- Make business data analysis easier.
+- Upload and explore CSV datasets.
+- Identify missing values and data-quality issues.
+- Perform regression and statistical analysis.
+- Estimate the effect of treatment variables on outcomes.
+- Display results using interactive graphs and reports.
 
-- **Frontend:** React, Vite, JavaScript, CSS
-- **Backend:** Python, Flask, Flask-CORS
-- **Data Analysis:** Pandas, NumPy
-- **Machine Learning:** Scikit-learn
-- **Visualization:** React chart components, Matplotlib, Streamlit
-- **Version Control:** Git and GitHub
+## 🏗️ System Architecture
 
-## Project Structure
+The application follows a frontend and backend architecture.
+
+```mermaid
+flowchart TD
+    A["User"] --> B["Upload CSV Dataset"]
+    B --> C["React Frontend Dashboard"]
+    C <-->|"API Requests"| D["Python Flask Backend"]
+    D --> E["Pandas Data Processing"]
+    E --> F["Data Validation"]
+    F --> G["Statistical Analysis"]
+    G --> H["Regression Analysis"]
+    G --> I["Double Machine Learning"]
+    H --> J["Analysis Results"]
+    I --> J
+    J --> K["API Response"]
+    K --> L["React Dashboard"]
+    L --> M["Graphs, Metrics and Reports"]
+```
+
+## 🧠 Double Machine Learning Workflow
+
+Double Machine Learning estimates the effect of a treatment variable on an outcome while considering other control variables.
+
+### Sample Sales Analysis
+
+- **Treatment Variable:** Discount
+- **Outcome Variable:** Sales
+- **Control Variable:** Advertising
+
+```mermaid
+flowchart TD
+    A["Sales Dataset"] --> B["Select Variables"]
+    B --> C["Treatment - Discount"]
+    B --> D["Outcome - Sales"]
+    B --> E["Control - Advertising"]
+    C --> F["Double Machine Learning"]
+    D --> F
+    E --> F
+    F --> G["Estimate Treatment Effect"]
+    G --> H["Generate Analysis Results"]
+    H --> I["Display Graphs and Metrics"]
+```
+
+## 💻 Technologies Used
+
+| Technology | Purpose |
+|---|---|
+| Python | Backend development and data processing |
+| Flask | Backend API development |
+| React.js | Frontend dashboard |
+| JavaScript | Frontend functionality |
+| Pandas | Dataset processing |
+| NumPy | Numerical operations |
+| Scikit-learn | Machine learning and model evaluation |
+| Recharts | Data visualization |
+| HTML | Application structure |
+| CSS | Dashboard styling |
+| Git & GitHub | Version control |
+
+## 🚀 Main Features
+
+### 1. Overview Dashboard
+Provides an overview of the application and important dataset information.
+
+### 2. Data Explorer
+Allows users to upload CSV files and explore datasets.
+
+### 3. Data Management
+Helps users work with uploaded datasets.
+
+### 4. Data Validation
+Identifies missing values and data-quality issues.
+
+### 5. Causal Analysis
+Allows users to select treatment, outcome, and control variables for causal analysis.
+
+### 6. Insights
+Displays useful information obtained from data analysis.
+
+### 7. Reports
+Presents analytical results in report format.
+
+### 8. AI Intelligence
+Provides an additional section for analytical insights.
+
+### 9. Settings
+Contains application settings and backend connection information.
+
+## 📊 Sample Dataset
+
+For demonstration, a sample sales dataset is used.
+
+| Discount | Advertising | Sales |
+|---:|---:|---:|
+| 5 | 10 | 18 |
+| 10 | 15 | 25 |
+| 15 | 20 | 32 |
+| 20 | 25 | 39 |
+| 25 | 30 | 46 |
+| 30 | 35 | 53 |
+| 35 | 40 | 60 |
+| 40 | 45 | 67 |
+
+This dataset demonstrates regression and causal analysis using discount, advertising, and sales variables.
+
+## 📈 Model Evaluation
+
+Regression analysis uses evaluation metrics such as:
+
+- **MAE (Mean Absolute Error):** Measures the average difference between actual and predicted values.
+- **R-squared:** Measures how well the model explains variation in the outcome.
+
+### Example Results
+
+| Evaluation Metric | Result |
+|---|---:|
+| MAE | 0.709 |
+| R-squared | 0.980 |
+
+### Double Machine Learning Result
+
+| Parameter | Value |
+|---|---|
+| Treatment | Discount |
+| Outcome | Sales |
+| Control | Advertising |
+| Estimated Treatment Effect | 0.6741 |
+
+*Note: These results are from an earlier sample analysis. Actual results depend on the uploaded dataset.*
+
+## 📁 Project Structure
 
 ```text
 EconoCausal/
+│
 ├── backend/
 │   ├── app.py
 │   ├── data_analysis.py
 │   ├── day3_model.py
 │   ├── day4_dml.py
 │   ├── day5_evaluation.py
-│   ├── requirements.txt
 │   └── streamlit_app.py
+│
 ├── frontend/
-│   └── src/
-│       ├── App.jsx
-│       ├── main.jsx
-│       └── styles.css
+│   ├── public/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── styles.css
+│   ├── package.json
+│   └── index.html
+│
+├── outputs/
 ├── sample_data/
-│   ├── pricing_data.csv
-│   └── cleaned_sales_data.csv
-└── outputs/
-    ├── actual_vs_predicted.png
-    ├── discount_vs_sales.png
-    ├── day5_metrics.csv
-    └── day5_predictions.csv
+├── .gitignore
+└── README.md
 ```
 
-*Note: The listed output files are generated by the evaluation script. Your local repository may contain additional files.*
+## ⚙️ Installation and Setup
 
-## Week 1 — Project Setup and Data Analysis
+### Prerequisites
 
-### Day 1–2: Project Setup
-- Created the initial project structure.
-- Set up the React frontend using Vite.
-- Set up the Python backend using Flask.
-- Prepared sample pricing and sales datasets.
-
-### Day 3: Baseline Machine Learning Model
-- Implemented a Linear Regression model.
-- Used discount and advertising as input features and sales as the target.
-- Calculated model evaluation metrics, including MAE and R².
-- Established a baseline for further analysis.
-
-### Day 4: Double Machine Learning Demonstration
-- Implemented a demonstration of the Double Machine Learning approach.
-- Used discount as the treatment variable.
-- Used sales as the outcome variable.
-- Included advertising as a control variable.
-- Explored cross-fitted partialling-out to estimate the discount effect.
-
-### Day 5: Model Evaluation
-- Evaluated model predictions using a train-test split.
-- Calculated MAE, RMSE, and R².
-- Generated actual-versus-predicted and discount-versus-sales visualizations.
-- Saved evaluation metrics and predictions to CSV files.
-
-### Day 6: Streamlit Dashboard
-- Developed a Streamlit dashboard for exploring the sales dataset.
-- Displayed key dataset metrics and visualizations.
-- Added model evaluation information and generated charts.
-
-### Week 1 Outcome
-Established the initial data analysis and machine learning workflow, including a baseline model, a DML demonstration, evaluation outputs, and a dashboard.
-
-## Week 2 — Frontend and Backend Integration
-
-### Day 7: Flask API and CSV Analysis
-- Implemented a Flask health-check endpoint.
-- Added CSV upload and file validation.
-- Used Pandas to read and analyze uploaded CSV datasets.
-- Generated row counts, column information, data types, and missing-value counts.
-- Calculated numeric summaries, including mean, minimum, maximum, and standard deviation.
-- Prepared overview chart data from numeric columns.
-- Prepared relationship chart data when a sales or revenue column is available.
-- Configured Flask-CORS for frontend-backend communication.
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/health` | Checks whether the Flask API is running |
-| POST | `/api/analyze` | Accepts and analyzes an uploaded CSV file |
-
-### Week 2 Progress
-
-- [x] Configure the Flask backend.
-- [x] Implement the API health check.
-- [x] Implement CSV upload and validation.
-- [x] Generate dataset summaries.
-- [x] Prepare chart data in the API response.
-- [ ] Connect the returned chart data to React visualizations.
-- [ ] Verify graph updates using different CSV datasets.
-- [ ] Improve dashboard error handling and usability.
-
-## Installation and Setup
-
-### Requirements
-- Node.js LTS with npm
-- Python 3.10 or later recommended
+- Python
+- Node.js and npm
 - Git
 
 ### 1. Clone the Repository
 
-```powershell
+```bash
 git clone https://github.com/keerthana-sakala08/EconoCasual.git
+```
+
+### 2. Navigate to the Project Folder
+
+```bash
 cd EconoCasual
 ```
 
-### 2. Install Backend Dependencies
+### 3. Install Backend Dependencies
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -m pip install -r backend\requirements.txt
+```bash
+pip install flask flask-cors pandas numpy scikit-learn matplotlib
 ```
 
-If PowerShell blocks virtual environment activation, run:
+### 4. Start the Flask Backend
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+```bash
+python backend/app.py
 ```
 
-### 3. Start the Backend
+Backend URL:
 
-From the repository root:
-
-```powershell
-python backend\app.py
+```text
+http://127.0.0.1:5000
 ```
 
-The Flask API runs at:
+### 5. Install Frontend Dependencies
 
-`http://127.0.0.1:5000`
+Open another terminal:
 
-Verify the API at:
-
-`http://127.0.0.1:5000/api/health`
-
-### 4. Install and Start the Frontend
-
-Open a second terminal:
-
-```powershell
+```bash
 cd frontend
 npm install
+```
+
+### 6. Start the React Frontend
+
+```bash
 npm run dev
 ```
 
-Open the local URL displayed by Vite, usually:
+Frontend URL:
 
-`http://localhost:5173`
+```text
+http://localhost:5173
+```
 
-Keep both backend and frontend terminals running while testing the application.
+Keep both frontend and backend running while using the application.
 
-## Using the Dashboard
+## 🔗 API Endpoints
 
-1. Start the Flask backend and React frontend.
-2. Open the dashboard in your browser.
-3. Upload a CSV file containing column headers.
-4. Review the dataset summary and numeric statistics.
-5. Check the API response and available chart data.
-6. Test with another CSV file to verify dataset-specific results.
+| Endpoint | Purpose |
+|---|---|
+| `/api/health` | Checks backend health |
+| `/api/analyze` | Performs dataset analysis |
+| `/api/validate` | Validates uploaded data |
+| `/api/validation-report` | Provides validation information |
+| `/api/dml` | Performs Double Machine Learning |
+| `/api/statistics` | Provides dataset statistics |
 
-## Important Limitations
+## 🔄 Project Workflow
 
-- The project is under development.
-- Preparing chart data in the backend does not automatically render those charts in React; frontend integration is still required.
-- The DML implementation is a demonstration and does not, by itself, establish a reliable causal effect.
-- The current dataset is very small, so model evaluation metrics are not reliable evidence of real-world performance.
-- Valid causal conclusions require suitable data, assumptions, and careful validation.
+1. Open the EconoCausal dashboard.
+2. Upload a CSV dataset.
+3. Explore the uploaded data.
+4. Validate the dataset.
+5. Select treatment, outcome, and control variables.
+6. Perform regression or causal analysis.
+7. View estimated results and evaluation metrics.
+8. Explore graphs, insights, and reports.
 
-## Future Improvements
+## 🔮 Future Improvements
 
-- Complete dynamic chart rendering in the React dashboard.
-- Support different CSV column names and dataset formats.
-- Improve missing-value handling and data validation.
-- Integrate model evaluation results into the dashboard.
-- Improve the DML pipeline and validate its assumptions.
-- Add clearer error messages and user-friendly visualizations.
+- Improve frontend and backend integration.
+- Add support for more dataset formats.
+- Include additional machine learning models.
+- Improve interactive data visualizations.
+- Enhance report generation.
+- Add advanced causal inference methods.
 
-## Repository
+## 📝 Conclusion
 
-GitHub: https://github.com/keerthana-sakala08/EconoCasual
+EconoCausal combines data analysis, machine learning, and web development in a single application.
 
+It provides a platform for exploring datasets, performing regression and causal analysis, and understanding results through interactive visualizations.
+
+The project demonstrates how Python, Flask, React, and machine learning techniques can work together to develop a practical data analysis application.
+
+## 👩‍💻 Developer
+
+**Project Name:** EconoCausal
+
+**Domain:** Data Science and Machine Learning
+
+**GitHub Repository:** [EconoCausal](https://github.com/keerthana-sakala08/EconoCasual)
