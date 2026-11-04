@@ -30,12 +30,10 @@ def create_sample_dataset():
 def main():
     print("\n===== ECONOCAUSAL: DAY 2 =====")
 
-    # Create sample data if missing
     if not DATA_FILE.exists():
         create_sample_dataset()
         print("Sample dataset created.")
 
-    # Load and validate dataset
     try:
         df = pd.read_csv(DATA_FILE)
     except (pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
@@ -53,11 +51,8 @@ def main():
         col for col in REQUIRED_COLUMNS if col not in df.columns
     ]
     if missing_columns:
-        raise ValueError(
-            f"Missing required columns: {missing_columns}"
-        )
+        raise ValueError(f"Missing required columns: {missing_columns}")
 
-    # Convert expected columns to numeric values
     for col in REQUIRED_COLUMNS:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -73,12 +68,10 @@ def main():
     print("\n4. Missing values before cleaning:")
     print(df.isnull().sum())
 
-    # Remove duplicate records
     before = len(df)
     df = df.drop_duplicates().copy()
     print(f"\nDuplicate rows removed: {before - len(df)}")
 
-    # Fill missing numeric values using column medians
     numeric_cols = df.select_dtypes(include=np.number).columns
 
     for col in numeric_cols:
@@ -86,13 +79,11 @@ def main():
         if pd.notna(median_value):
             df[col] = df[col].fillna(median_value)
 
-    # Check that required columns have usable values
     if df[REQUIRED_COLUMNS].isnull().any().any():
         raise ValueError(
             "Some required columns contain no usable numeric values."
         )
 
-    # Basic statistics
     print("\n5. Descriptive statistics:")
     print(df.describe().round(2))
 
@@ -108,15 +99,12 @@ def main():
     print("\n9. Missing values after cleaning:")
     print(df.isnull().sum())
 
-    # Save cleaned dataset
     clean_file = DATA_FILE.parent / "cleaned_sales_data.csv"
     df.to_csv(clean_file, index=False)
 
     print(f"\nCleaned dataset saved to: {clean_file}")
-    print("\n analysis completed successfully!")
+    print("\nAnalysis completed successfully!")
 
 
 if __name__ == "__main__":
     main()
-
-

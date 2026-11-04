@@ -7,10 +7,7 @@ import pandas as pd
 import streamlit as st
 
 
-# --------------------------------------------------
-# 1. Project paths
-# --------------------------------------------------
-
+# Project paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "sample_data"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -25,10 +22,7 @@ GRAPH_FILES = [
 ]
 
 
-# --------------------------------------------------
-# 2. Page configuration
-# --------------------------------------------------
-
+# Page configuration
 st.set_page_config(
     page_title="EconoCausal Dashboard",
     page_icon="📊",
@@ -41,10 +35,7 @@ st.write(
 )
 
 
-# --------------------------------------------------
-# 3. Load and validate the dataset
-# --------------------------------------------------
-
+# Dataset overview
 st.header("1. Dataset Overview")
 
 if not DATA_FILE.exists():
@@ -68,10 +59,8 @@ if df.empty:
 st.write(f"**Dataset:** {DATA_FILE.name}")
 st.write(f"**Total records:** {len(df)}")
 st.write(f"**Total columns:** {len(df.columns)}")
-
 st.dataframe(df, use_container_width=True)
 
-# Display missing values when present.
 missing_counts = df.isna().sum()
 missing_counts = missing_counts[missing_counts > 0]
 
@@ -83,10 +72,7 @@ if not missing_counts.empty:
     )
 
 
-# --------------------------------------------------
-# 4. Dataset summary metrics
-# --------------------------------------------------
-
+# Dataset summary metrics
 if {"sales", "discount"}.issubset(df.columns):
     sales = pd.to_numeric(df["sales"], errors="coerce")
     discount = pd.to_numeric(df["discount"], errors="coerce")
@@ -97,9 +83,7 @@ if {"sales", "discount"}.issubset(df.columns):
         average_sales = sales.mean()
         st.metric(
             "Average Sales",
-            f"{average_sales:,.2f}"
-            if pd.notna(average_sales)
-            else "N/A",
+            f"{average_sales:,.2f}" if pd.notna(average_sales) else "N/A",
         )
 
     with col2:
@@ -115,21 +99,15 @@ if {"sales", "discount"}.issubset(df.columns):
         total_sales = sales.sum() if sales.notna().any() else float("nan")
         st.metric(
             "Total Sales",
-            f"{total_sales:,.2f}"
-            if pd.notna(total_sales)
-            else "N/A",
+            f"{total_sales:,.2f}" if pd.notna(total_sales) else "N/A",
         )
 else:
     st.warning(
-        "Average sales, average discount, and total sales require "
-        "'sales' and 'discount' columns."
+        "Summary metrics require 'sales' and 'discount' columns."
     )
 
 
-# --------------------------------------------------
-# 5. Model evaluation metrics
-# --------------------------------------------------
-
+# Model evaluation
 st.header("2. Model Evaluation")
 
 if METRICS_FILE.exists():
@@ -142,12 +120,9 @@ if METRICS_FILE.exists():
             st.subheader("Evaluation Metrics")
             st.dataframe(metrics, use_container_width=True)
 
-            # Show key metrics as dashboard cards when available.
             metric_columns = st.columns(3)
 
-            for index, metric_name in enumerate(
-                ["MAE", "RMSE", "R2"]
-            ):
+            for index, metric_name in enumerate(["MAE", "RMSE", "R2"]):
                 if metric_name in metrics.columns:
                     value = pd.to_numeric(
                         metrics[metric_name], errors="coerce"
@@ -156,9 +131,7 @@ if METRICS_FILE.exists():
                     with metric_columns[index]:
                         st.metric(
                             metric_name,
-                            f"{value:.3f}"
-                            if pd.notna(value)
-                            else "N/A",
+                            f"{value:.3f}" if pd.notna(value) else "N/A",
                         )
 
     except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
@@ -170,10 +143,7 @@ else:
     )
 
 
-# --------------------------------------------------
-# 6. Actual vs predicted sales
-# --------------------------------------------------
-
+# Actual vs predicted sales
 if PREDICTIONS_FILE.exists():
     try:
         predictions = pd.read_csv(PREDICTIONS_FILE)
@@ -185,14 +155,9 @@ if PREDICTIONS_FILE.exists():
         else:
             st.dataframe(predictions, use_container_width=True)
 
-            required_prediction_columns = {
-                "Actual_Sales",
-                "Predicted_Sales",
-            }
+            required_columns = {"Actual_Sales", "Predicted_Sales"}
 
-            if required_prediction_columns.issubset(
-                predictions.columns
-            ):
+            if required_columns.issubset(predictions.columns):
                 plot_data = predictions[
                     ["Actual_Sales", "Predicted_Sales"]
                 ].apply(pd.to_numeric, errors="coerce").dropna()
@@ -203,9 +168,7 @@ if PREDICTIONS_FILE.exists():
                         use_container_width=True,
                     )
                 else:
-                    st.info(
-                        "No valid numeric prediction values are available."
-                    )
+                    st.info("No valid numeric prediction values are available.")
 
     except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
         st.error(f"Could not read prediction results: {exc}")
@@ -216,10 +179,7 @@ else:
     )
 
 
-# --------------------------------------------------
-# 7. Visualizations
-# --------------------------------------------------
-
+# Visualizations
 st.header("3. Visualizations")
 
 for graph_title, filename in GRAPH_FILES:
@@ -239,10 +199,7 @@ for graph_title, filename in GRAPH_FILES:
         )
 
 
-# --------------------------------------------------
-# 8. Discount effect analysis
-# --------------------------------------------------
-
+# Discount effect analysis
 st.header("4. Discount Effect Analysis")
 
 if {"discount", "sales"}.issubset(df.columns):
@@ -261,10 +218,7 @@ if {"discount", "sales"}.issubset(df.columns):
         )
 
         if pd.notna(correlation):
-            st.metric(
-                "Discount-Sales Correlation",
-                f"{correlation:.3f}",
-            )
+            st.metric("Discount-Sales Correlation", f"{correlation:.3f}")
         else:
             st.info("Correlation could not be calculated.")
     else:
@@ -275,9 +229,8 @@ if {"discount", "sales"}.issubset(df.columns):
 
     st.caption(
         "Correlation measures association, not causation. "
-        "Use the Double Machine Learning (DML) analysis for a separate "
-        "causal-effect estimate. Small datasets may produce unreliable "
-        "results."
+        "Use Double Machine Learning (DML) for a separate causal-effect "
+        "estimate. Small datasets may produce unreliable results."
     )
 else:
     st.warning(
@@ -285,9 +238,5 @@ else:
     )
 
 
-# --------------------------------------------------
-# 9. Dashboard status
-# --------------------------------------------------
-
+# Dashboard status
 st.success("EconoCausal dashboard loaded successfully.")
-

@@ -1,14 +1,12 @@
-```python
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
 
-# ==========================================
 # ECONOCAUSAL - DAY 4
 # Double Machine Learning Demonstration
-# ==========================================
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 CLEAN_FILE = PROJECT_DIR / "sample_data" / "cleaned_sales_data.csv"
@@ -32,28 +30,22 @@ def main():
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    # Keep required columns and convert them to numeric values
     df = df[required].apply(pd.to_numeric, errors="coerce")
     df = df.replace([np.inf, -np.inf], np.nan).dropna()
 
     if len(df) < 6:
-        raise ValueError(
-            "At least 6 valid rows are required for this demonstration."
-        )
+        raise ValueError("At least 6 valid rows are required.")
 
     if df["discount"].nunique() < 2:
         raise ValueError("Discount must have at least two different values.")
 
     if df["advertising"].nunique() < 2:
-        raise ValueError(
-            "Advertising must vary to demonstrate adjustment for a control."
-        )
+        raise ValueError("Advertising must vary to demonstrate adjustment.")
 
     treatment = df["discount"].to_numpy(dtype=float)
     outcome = df["sales"].to_numpy(dtype=float)
     controls = df[["advertising"]].to_numpy(dtype=float)
 
-    # Cross-fitted nuisance predictions
     n_splits = min(5, len(df))
     cv = KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
@@ -85,7 +77,6 @@ def main():
             controls[test_idx]
         )
 
-    # Residualize treatment and outcome
     treatment_residual = treatment - predicted_treatment
     outcome_residual = outcome - predicted_outcome
 
@@ -107,7 +98,6 @@ def main():
     print("Outcome: sales")
     print("Control: advertising")
     print("Method: Cross-fitted partialling-out estimator")
-
     print(f"\nEstimated effect per discount unit: {estimated_effect:.4f}")
 
     print("\nInterpretation:")
@@ -129,4 +119,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
