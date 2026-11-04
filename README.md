@@ -1,6 +1,6 @@
 # EconoCausal – Data Analysis and Causal Inference Platform
 
-## 📌 Project Overview
+##  Project Overview
 
 EconoCausal is a web-based data analysis and causal inference application designed to help users understand how different factors influence business outcomes.
 
@@ -8,7 +8,7 @@ Users can upload CSV datasets, explore data, validate data quality, perform regr
 
 The application provides an interactive dashboard with visualizations, analytical results, metrics, and reports.
 
-## 🎯 Project Objectives
+## Project Objectives
 
 - Make business data analysis easier.
 - Upload and explore CSV datasets.
@@ -17,7 +17,7 @@ The application provides an interactive dashboard with visualizations, analytica
 - Estimate the effect of treatment variables on outcomes.
 - Display results using interactive graphs and reports.
 
-## 🏗️ System Architecture
+##  System Architecture
 
 The application follows a frontend and backend architecture.
 
@@ -38,7 +38,7 @@ flowchart TD
     L --> M["Graphs, Metrics and Reports"]
 ```
 
-## 🧠 Double Machine Learning Workflow
+##  Double Machine Learning Workflow
 
 Double Machine Learning estimates the effect of a treatment variable on an outcome while considering other control variables.
 
@@ -62,7 +62,7 @@ flowchart TD
     H --> I["Display Graphs and Metrics"]
 ```
 
-## 💻 Technologies Used
+##  Technologies Used
 
 | Technology | Purpose |
 |---|---|
@@ -78,7 +78,7 @@ flowchart TD
 | CSS | Dashboard styling |
 | Git & GitHub | Version control |
 
-## 🚀 Main Features
+##  Main Features
 
 ### 1. Overview Dashboard
 Provides an overview of the application and important dataset information.
@@ -107,7 +107,7 @@ Provides an additional section for analytical insights.
 ### 9. Settings
 Contains application settings and backend connection information.
 
-## 📊 Sample Dataset
+## Sample Dataset
 
 For demonstration, a sample sales dataset is used.
 
@@ -124,7 +124,7 @@ For demonstration, a sample sales dataset is used.
 
 This dataset demonstrates regression and causal analysis using discount, advertising, and sales variables.
 
-## 📈 Model Evaluation
+##  Model Evaluation
 
 Regression analysis uses evaluation metrics such as:
 
@@ -149,7 +149,7 @@ Regression analysis uses evaluation metrics such as:
 
 *Note: These results are from an earlier sample analysis. Actual results depend on the uploaded dataset.*
 
-## 📁 Project Structure
+##  Project Structure
 
 ```text
 EconoCausal/
@@ -177,7 +177,7 @@ EconoCausal/
 └── README.md
 ```
 
-## ⚙️ Installation and Setup
+##  Installation and Setup
 
 ### Prerequisites
 
@@ -238,7 +238,7 @@ http://localhost:5173
 
 Keep both frontend and backend running while using the application.
 
-## 🔗 API Endpoints
+## API Endpoints
 
 | Endpoint | Purpose |
 |---|---|
@@ -249,7 +249,7 @@ Keep both frontend and backend running while using the application.
 | `/api/dml` | Performs Double Machine Learning |
 | `/api/statistics` | Provides dataset statistics |
 
-## 🔄 Project Workflow
+##  Project Workflow
 
 1. Open the EconoCausal dashboard.
 2. Upload a CSV dataset.
@@ -260,7 +260,7 @@ Keep both frontend and backend running while using the application.
 7. View estimated results and evaluation metrics.
 8. Explore graphs, insights, and reports.
 
-## 🔮 Future Improvements
+##  Future Improvements
 
 - Improve frontend and backend integration.
 - Add support for more dataset formats.
@@ -269,7 +269,7 @@ Keep both frontend and backend running while using the application.
 - Enhance report generation.
 - Add advanced causal inference methods.
 
-## 📝 Conclusion
+##  Conclusion
 
 EconoCausal combines data analysis, machine learning, and web development in a single application.
 
@@ -277,7 +277,7 @@ It provides a platform for exploring datasets, performing regression and causal 
 
 The project demonstrates how Python, Flask, React, and machine learning techniques can work together to develop a practical data analysis application.
 
-## 👩‍💻 Developer
+##  Developer
 
 **Project Name:** EconoCausal
 
