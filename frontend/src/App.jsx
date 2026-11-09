@@ -14,7 +14,7 @@ import {
   ScatterChart, Scatter, AreaChart, Area
 } from "recharts";
 
-const API_BASE = "http://127.0.0.1:5000";
+const API_BASE = "https://econocausal-api-kidd.onrender.com";
 
 const PAGES = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
