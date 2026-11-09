@@ -11,9 +11,19 @@ from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
+import os
 
 app = Flask(__name__)
-CORS(app)
+
+allowed_origins = ["http://localhost:5173"]
+
+frontend_url = os.environ.get("FRONTEND_URL")
+if frontend_url:
+    allowed_origins.append(frontend_url)
+
+CORS(app, resources={
+    r"/api/*": {"origins": allowed_origins}
+})
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB upload limit
 
 
@@ -377,4 +387,8 @@ def file_too_large(_error):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
